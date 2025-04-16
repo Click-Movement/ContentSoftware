@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import WPAPI from 'wpapi';
-import { PersonaType } from '@/types/personas';
+// import { PersonaType } from '@/types/personas';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
       // Split content by double newlines and wrap each paragraph in <p> tags
       contentWithoutH1 = contentWithoutH1
         .split(/\n\n+/)
-        .filter(p => p.trim().length > 0)
-        .map(p => `<p>${p}</p>`)
+        .filter((p: string) => p.trim().length > 0)
+        .map((p: string) => `<p>${p}</p>`)
         .join('');
     }
     

@@ -2,15 +2,46 @@ import * as cheerio from 'cheerio';
 import wiki from 'wikijs';
 import axios from 'axios';
 
+interface ImageResult {
+  url: string;
+  source: string;
+  pageTitle?: string;
+  pageUrl?: string;
+  license: string;
+  attribution?: string;
+}
+
+interface WikiSearchResults {
+  results: string[];
+  totalHits: number;
+}
+
+interface WikiPage {
+  url(): string;
+  images(): Promise<string[]>;
+  // Add other methods you might use
+}
+
+// Define the type for wiki function
+interface WikiJS {
+  (): {
+    search(term: string, limit: number): Promise<WikiSearchResults>;
+    page(title: string): Promise<WikiPage>;
+  };
+}
+
+// Type assertion for the wiki import
+const typedWiki = wiki as unknown as WikiJS;
+
 /**
  * Find a suitable non-copyright image from Wikipedia based on a search term
  * @param searchTerm The term to search for images
  * @returns Object containing image URL and attribution information
  */
-export async function findWikipediaImage(searchTerm: string) {
+export async function findWikipediaImage(searchTerm: string): Promise<ImageResult> {
   try {
     // Search Wikipedia for the term
-    const searchResults = await wiki().search(searchTerm, 3);
+    const searchResults = await typedWiki().search(searchTerm, 3);
     
     if (!searchResults.results || searchResults.results.length === 0) {
       throw new Error('No Wikipedia articles found for the search term');
@@ -19,18 +50,25 @@ export async function findWikipediaImage(searchTerm: string) {
     // Try to get images from each result until we find a suitable one
     for (const pageTitle of searchResults.results) {
       try {
-        const page = await wiki().page(pageTitle);
+        const page = await typedWiki().page(pageTitle);
         const images = await page.images();
         
         // Filter out SVG images and look for suitable images
-        const suitableImages = images.filter(img => {
-          const lowerUrl = img.toLowerCase();
+        // Define an interface for the filter conditions
+        interface ImageFilterCriteria {
+          lowerUrl: string;
+          excludeExtensions: string[];
+          excludeKeywords: string[];
+        }
+        
+        const suitableImages: string[] = images.filter((img: string) => {
+          const lowerUrl: string = img.toLowerCase();
           // Exclude SVGs, logos, icons, and maps which are often not suitable as featured images
           return !lowerUrl.endsWith('.svg') && 
-                 !lowerUrl.includes('logo') && 
-                 !lowerUrl.includes('icon') && 
-                 !lowerUrl.includes('map') &&
-                 !lowerUrl.includes('getty'); // Explicitly avoid Getty images
+           !lowerUrl.includes('logo') && 
+           !lowerUrl.includes('icon') && 
+           !lowerUrl.includes('map') &&
+           !lowerUrl.includes('getty'); // Explicitly avoid Getty images
         });
         
         if (suitableImages.length > 0) {
@@ -63,7 +101,7 @@ export async function findWikipediaImage(searchTerm: string) {
  * @param searchTerm The term to search for images
  * @returns Object containing image URL and attribution information
  */
-export async function findUnsplashImage(searchTerm: string) {
+export async function findUnsplashImage(searchTerm: string): Promise<ImageResult> {
   try {
     // Search Unsplash for the term using their public API
     const response = await axios.get(`https://source.unsplash.com/featured/?${encodeURIComponent(searchTerm)}`);
@@ -92,7 +130,7 @@ export async function findUnsplashImage(searchTerm: string) {
  * @param searchTerm The term to search for images
  * @returns Object containing image URL and attribution information
  */
-export async function findPixabayImage(searchTerm: string) {
+export async function findPixabayImage(searchTerm: string): Promise<ImageResult> {
   try {
     // Use web scraping to find images from Pixabay
     const response = await axios.get(`https://pixabay.com/images/search/${encodeURIComponent(searchTerm)}/`);
@@ -129,9 +167,9 @@ export async function findPixabayImage(searchTerm: string) {
  * @param searchTerm The term to search for images
  * @returns Object containing image URL and attribution information
  */
-export async function findFreeImage(searchTerm: string) {
-  // Try different sources in order of preference
-  const sources = [
+export async function findFreeImage(searchTerm: string): Promise<ImageResult> {
+  // Type the array of source functions
+  const sources: Array<(term: string) => Promise<ImageResult>> = [
     findWikipediaImage,
     findUnsplashImage,
     findPixabayImage

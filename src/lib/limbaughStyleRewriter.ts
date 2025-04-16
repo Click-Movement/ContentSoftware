@@ -6,6 +6,16 @@ export interface RewrittenContent {
   content: string;
 }
 
+
+interface KeyElements {
+  facts: string[];
+  quotes: string[];
+  statistics: string[];
+  people: string[];
+  topics: string[];
+  mainIdeas: string[];
+}
+
 export function applyLimbaughStyle(title: string, content: string): RewrittenContent {
   // 1. Transform the title to be more attention-grabbing and provocative (but not all caps)
   const transformedTitle = transformTitle(title);
@@ -88,9 +98,9 @@ function capitalizeFirstLetter(string: string): string {
   }).join(' ');
 }
 
-function extractKeyElements(content: string): any {
+function extractKeyElements(content: string): KeyElements {
   // Extract key facts, quotes, statistics, and people mentioned
-  const keyElements: any = {
+  const keyElements: KeyElements = {
     facts: [],
     quotes: [],
     statistics: [],
@@ -168,7 +178,7 @@ const commonWords = [
   'while', 'with', 'would', 'your'
 ];
 
-function transformContent(content: string, keyElements: any): string {
+function transformContent(content: string, keyElements: KeyElements): string {
   // Break content into paragraphs
   const paragraphs = content.split(/\n\n+/).filter(p => p.trim().length > 0);
   
@@ -183,19 +193,19 @@ function transformContent(content: string, keyElements: any): string {
   // Skip the first and last paragraphs as we handle them separately
   for (let i = 1; i < paragraphs.length - 1; i++) {
     // Create a completely new paragraph based on the original content
-    const newParagraph = createNewParagraph(paragraphs[i], i, keyElements);
+    const newParagraph = createNewParagraph(paragraphs[i], i);
     newParagraphs.push(newParagraph);
     
     // Every few paragraphs, add an additional Limbaugh-style paragraph
     // to increase originality and authenticity
     if (i % 2 === 0 && i < paragraphs.length - 2) {
-      newParagraphs.push(createAdditionalParagraph(i, keyElements));
+      newParagraphs.push(createAdditionalParagraph(i));
     }
   }
   
   // Add a strong closing paragraph
   if (paragraphs.length > 1) {
-    newParagraphs.push(createClosingParagraph(paragraphs[paragraphs.length - 1], keyElements));
+    newParagraphs.push(createClosingParagraph(paragraphs[paragraphs.length - 1]));
   }
   
   // Add additional Limbaugh-style paragraphs for authenticity
@@ -206,7 +216,7 @@ function transformContent(content: string, keyElements: any): string {
   return enhancedParagraphs.map(p => `<p>${p}</p>`).join('');
 }
 
-function createOpeningParagraph(originalParagraph: string, keyElements: any): string {
+function createOpeningParagraph(originalParagraph: string, keyElements: KeyElements): string {
   // Create a completely new opening paragraph in Limbaugh style
   const openingPhrases = [
     "Folks, let me tell you something. ",
@@ -262,7 +272,7 @@ function createOpeningParagraph(originalParagraph: string, keyElements: any): st
     .replace(/said|stated|mentioned/gi, 'ADMITTED');
 }
 
-function createNewParagraph(originalParagraph: string, index: number, keyElements: any): string {
+function createNewParagraph(originalParagraph: string, index: number): string {
   // Create a completely new paragraph based on the original content
   
   // Start with a Limbaugh-style transition phrase
@@ -368,7 +378,7 @@ function createNewParagraph(originalParagraph: string, index: number, keyElement
   return newParagraph;
 }
 
-function createAdditionalParagraph(index: number, keyElements: any): string {
+function createAdditionalParagraph(index: number): string {
   // Create an additional Limbaugh-style paragraph to increase originality
   
   // Different types of additional paragraphs
@@ -403,7 +413,7 @@ function createAdditionalParagraph(index: number, keyElements: any): string {
   }
 }
 
-function createClosingParagraph(originalParagraph: string, keyElements: any): string {
+function createClosingParagraph(originalParagraph: string): string {
   // Create a completely new closing paragraph in Limbaugh style
   
   const closingPhrases = [
@@ -457,7 +467,7 @@ function createClosingParagraph(originalParagraph: string, keyElements: any): st
   return newClosing + callToAction;
 }
 
-function addLimbaughEnhancements(paragraphs: string[], keyElements: any): string[] {
+function addLimbaughEnhancements(paragraphs: string[], keyElements: KeyElements): string[] {
   const enhancedParagraphs = [...paragraphs];
   
   // Add a paragraph with rhetorical questions after the first few paragraphs
@@ -497,7 +507,7 @@ function rewordInLimbaughStyle(text: string): string {
   // This is a key function for avoiding plagiarism
   
   // Extract the main subject and action from the text
-  const words = text.split(' ');
+  // const words = text.split(' ');
   const mainSubject = extractMainSubject(text);
   const mainAction = extractMainAction(text);
   

@@ -1,7 +1,16 @@
 // Larry Elder Style Content Rewriter
 // Based on Larry Elder's distinctive writing and speaking style
-
 import { RewrittenContent } from './limbaughStyleRewriter';
+
+
+interface KeyElements {
+  facts: string[];
+  quotes: string[];
+  statistics: string[];
+  people: string[];
+  topics: string[];
+  mainIdeas: string[];
+}
 
 export function applyLarryElderStyle(title: string, content: string): RewrittenContent {
   // 1. Transform the title to be more attention-grabbing and provocative
@@ -83,15 +92,15 @@ function capitalizeFirstLetter(string: string): string {
   }).join(' ');
 }
 
-function extractKeyElements(content: string): any {
+function extractKeyElements(content: string): KeyElements {
   // Extract key facts, quotes, statistics, and people mentioned
-  const keyElements: any = {
+  const keyElements: KeyElements={
     facts: [],
     quotes: [],
     statistics: [],
     people: [],
     topics: [],
-    mainIdeas: []
+    mainIdeas: [] 
   };
   
   // Extract quotes (text within quotation marks)
@@ -163,7 +172,7 @@ const commonWords = [
   'while', 'with', 'would', 'your'
 ];
 
-function transformContent(content: string, keyElements: any): string {
+function transformContent(content: string, keyElements: KeyElements): string {
   // Break content into paragraphs
   const paragraphs = content.split(/\n\n+/).filter(p => p.trim().length > 0);
   
@@ -184,7 +193,7 @@ function transformContent(content: string, keyElements: any): string {
     // Every few paragraphs, add an additional Elder-style paragraph
     // to increase originality and authenticity
     if (i % 2 === 0 && i < paragraphs.length - 2) {
-      newParagraphs.push(createAdditionalParagraph(i, keyElements));
+      newParagraphs.push(createAdditionalParagraph(i));
     }
   }
   
@@ -194,14 +203,14 @@ function transformContent(content: string, keyElements: any): string {
   }
   
   // Add additional Elder-style paragraphs for authenticity
-  const enhancedParagraphs = addElderEnhancements(newParagraphs, keyElements);
+  const enhancedParagraphs = addElderEnhancements(newParagraphs);
   
   // Join paragraphs with proper HTML paragraph tags for WordPress formatting
   // Use <p> tags instead of newlines to ensure proper spacing in WordPress
   return enhancedParagraphs.map(p => `<p>${p}</p>`).join('');
 }
 
-function createOpeningParagraph(originalParagraph: string, keyElements: any): string {
+function createOpeningParagraph(originalParagraph: string, keyElements: KeyElements): string {
   // Create a completely new opening paragraph in Larry Elder style
   const openingPhrases = [
     "Let's get one thing straight. ",
@@ -286,7 +295,7 @@ function rewordInElderStyle(text: string): string {
   return rewordedText;
 }
 
-function createNewParagraph(originalParagraph: string, index: number, keyElements: any): string {
+function createNewParagraph(originalParagraph: string, index: number, keyElements: KeyElements): string {
   // Create a completely new paragraph based on the original content
   
   // Start with an Elder-style transition phrase
@@ -374,7 +383,7 @@ function createNewParagraph(originalParagraph: string, index: number, keyElement
   return newParagraph;
 }
 
-function createAdditionalParagraph(index: number, keyElements: any): string {
+function createAdditionalParagraph(index: number): string {
   // Create an additional Elder-style paragraph to increase originality
   
   // Different types of additional paragraphs
@@ -409,7 +418,7 @@ function createAdditionalParagraph(index: number, keyElements: any): string {
   }
 }
 
-function createClosingParagraph(originalParagraph: string, keyElements: any): string {
+function createClosingParagraph(originalParagraph: string, keyElements: KeyElements): string {
   // Create a strong closing paragraph in Larry Elder style
   
   // Start with an Elder-style closing phrase
@@ -462,7 +471,7 @@ function createClosingParagraph(originalParagraph: string, keyElements: any): st
   return newClosing;
 }
 
-function addElderEnhancements(paragraphs: string[], keyElements: any): string[] {
+function addElderEnhancements(paragraphs: string[]): string[] {
   // Add Larry Elder style enhancements to the paragraphs
   
   // Add a "DEAR FATHER" section in the middle

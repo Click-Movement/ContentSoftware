@@ -5,7 +5,7 @@ import { applyLarryElderStyle } from '@/lib/larryElderStyleRewriter';
 import { applyGlennBeckStyle } from '@/lib/glennBeckStyleRewriter';
 import { applyLauraLoomerStyle } from '@/lib/lauraLoomerStyleRewriter';
 import { applyTomiLahrenStyle } from '@/lib/tomiLahrenStyleRewriter';
-import { PersonaType } from '@/types/personas';
+// import { PersonaType } from '@/types/personas';
 
 export async function POST(request: NextRequest) {
   try {
