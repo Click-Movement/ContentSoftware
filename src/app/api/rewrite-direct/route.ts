@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rewriteInPersonaStyle, PersonaType } from '@/lib/aiPersonaRewriter';
 
+// Add this export to use Edge Runtime
+export const runtime = 'edge';
+
 export async function POST(request: NextRequest) {
   try {
     const { title, content, persona, model } = await request.json();
@@ -30,13 +33,13 @@ export async function POST(request: NextRequest) {
     // Validate model selection
     const selectedModel = model === 'gpt' ? 'gpt' : 'claude';
     
-    // Apply the AI-powered persona rewriting with model selection
-    const rewrittenContent = await rewriteInPersonaStyle(
-      title, 
-      content, 
-      selectedPersona,
-      selectedModel
-    );
+    // Add timeout for the API call
+    const rewrittenContent = await Promise.race([
+      rewriteInPersonaStyle(title, content, selectedPersona, selectedModel),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('API call timed out')), 45000)
+      ) as Promise<never>
+    ]);
     
     return NextResponse.json({
       success: true,
@@ -53,16 +56,18 @@ export async function POST(request: NextRequest) {
       ? error.message 
       : 'Failed to rewrite content';
     
-    // Handle rate limiting or quota errors specifically
+    // Handle rate limiting, quota errors, or timeouts specifically
     const isRateLimitError = errorMessage.toLowerCase().includes('rate limit') || 
                            errorMessage.toLowerCase().includes('quota');
+    const isTimeoutError = errorMessage.toLowerCase().includes('timed out');
     
     return NextResponse.json(
       { 
         error: errorMessage,
-        isRateLimitError: isRateLimitError
+        isRateLimitError,
+        isTimeoutError
       },
-      { status: isRateLimitError ? 429 : 500 }
+      { status: isRateLimitError ? 429 : isTimeoutError ? 504 : 500 }
     );
   }
 }

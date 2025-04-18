@@ -52,13 +52,14 @@ export async function rewriteInPersonaStyle(
   }
 }
 
+// Update the Claude response parsing
 async function rewriteWithClaude(
   prompt: string, 
   persona: PersonaType,
   originalContent: string
 ): Promise<RewrittenContent> {
   try {
-    // Calculate appropriate token limit with natural variation
+    // Calculate token limit
     const targetTokens = Math.min(3800, Math.max(800, calculateTargetLength(originalContent)));
     
     const response = await claude.messages.create({
@@ -67,20 +68,44 @@ async function rewriteWithClaude(
       messages: [
         { role: 'user', content: prompt }
       ],
-      temperature: 0.75 // Slightly lower temperature for more controlled length
+      temperature: 0.75
     });
 
-    // Extract and process Claude's response
-    const fullText = response.content[0].type === 'text' 
-      ? response.content[0].text
-      : '';
+    // Safer extraction of text content
+    let fullText = '';
+    try {
+      if (response.content && 
+          Array.isArray(response.content) && 
+          response.content.length > 0 &&
+          response.content[0].type === 'text') {
+        fullText = response.content[0].text || '';
+      }
+    } catch (parseError) {
+      console.error("Error parsing Claude response:", parseError);
+      throw new Error("Failed to parse Claude's response");
+    }
     
-    // Parse out the title and content
-    const titleMatch = fullText.match(/Title:?\s*(?:\n)?(.*?)(?:\n\n|\n(?=Content|<p>))/i);
-    const contentMatch = fullText.replace(/Title:?\s*(?:\n)?.*?(?:\n\n|\n(?=Content|<p>))/i, '');
+    if (!fullText) {
+      throw new Error("Empty response from Claude API");
+    }
 
-    const extractedTitle = titleMatch ? titleMatch[1].trim() : `${persona.replace('_', ' ')} Style Title`;
-    const extractedContent = ensureHtmlFormatting(contentMatch);
+    // Parse out title and content with error handling
+    let extractedTitle = `${persona.replace('_', ' ')} Style Title`;
+    let extractedContent = '';
+
+    try {
+      const titleMatch = fullText.match(/Title:?\s*(?:\n)?(.*?)(?:\n\n|\n(?=Content|<p>))/i);
+      if (titleMatch && titleMatch[1]) {
+        extractedTitle = titleMatch[1].trim();
+      }
+      
+      const contentWithoutTitle = fullText.replace(/Title:?\s*(?:\n)?.*?(?:\n\n|\n(?=Content|<p>))/i, '').trim();
+      extractedContent = ensureHtmlFormatting(contentWithoutTitle);
+    } catch (parseError) {
+      console.error("Error parsing title/content:", parseError);
+      // Fallback to using the entire response as content
+      extractedContent = ensureHtmlFormatting(fullText);
+    }
 
     return {
       title: extractedTitle,
@@ -92,32 +117,59 @@ async function rewriteWithClaude(
   }
 }
 
+// Similarly for GPT
 async function rewriteWithGPT(
   prompt: string, 
   persona: PersonaType,
   originalContent: string
 ): Promise<RewrittenContent> {
   try {
-    // Calculate appropriate token limit with natural variation
     const targetTokens = Math.min(3500, Math.max(800, calculateTargetLength(originalContent)));
     
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4', 
       messages: [
         { role: 'user', content: prompt }
       ],
-      temperature: 0.75, // Slightly lower temperature for more controlled length
+      temperature: 0.75,
       max_tokens: targetTokens
     });
 
-    const fullText = response.choices[0]?.message?.content || '';
+    // Safer extraction of content
+    let fullText = '';
+    try {
+      if (response.choices && 
+          response.choices.length > 0 && 
+          response.choices[0].message && 
+          response.choices[0].message.content) {
+        fullText = response.choices[0].message.content;
+      }
+    } catch (parseError) {
+      console.error("Error parsing GPT response:", parseError);
+      throw new Error("Failed to parse GPT's response");
+    }
     
-    // Parse out the title and content
-    const titleMatch = fullText.match(/Title:?\s*(?:\n)?(.*?)(?:\n\n|\n(?=Content|<p>))/i);
-    const contentMatch = fullText.replace(/Title:?\s*(?:\n)?.*?(?:\n\n|\n(?=Content|<p>))/i, '');
+    if (!fullText) {
+      throw new Error("Empty response from OpenAI API");
+    }
 
-    const extractedTitle = titleMatch ? titleMatch[1].trim() : `${persona.replace('_', ' ')} Style Title`;
-    const extractedContent = ensureHtmlFormatting(contentMatch);
+    // Parse out title and content with error handling
+    let extractedTitle = `${persona.replace('_', ' ')} Style Title`;
+    let extractedContent = '';
+
+    try {
+      const titleMatch = fullText.match(/Title:?\s*(?:\n)?(.*?)(?:\n\n|\n(?=Content|<p>))/i);
+      if (titleMatch && titleMatch[1]) {
+        extractedTitle = titleMatch[1].trim();
+      }
+      
+      const contentWithoutTitle = fullText.replace(/Title:?\s*(?:\n)?.*?(?:\n\n|\n(?=Content|<p>))/i, '').trim();
+      extractedContent = ensureHtmlFormatting(contentWithoutTitle);
+    } catch (parseError) {
+      console.error("Error parsing title/content:", parseError);
+      // Fallback to using the entire response as content
+      extractedContent = ensureHtmlFormatting(fullText);
+    }
 
     return {
       title: extractedTitle,
@@ -129,17 +181,26 @@ async function rewriteWithGPT(
   }
 }
 
-// Helper function to ensure HTML formatting
+// Improve HTML formatting function with better error handling
 function ensureHtmlFormatting(content: string): string {
-  // If content already has paragraph tags, return as is
-  if (content.includes('<p>')) return content.trim();
-  
-  // Otherwise, add paragraph tags
-  return content
-    .split('\n\n')
-    .filter(p => p.trim().length > 0)
-    .map(p => `<p>${p.trim()}</p>`)
-    .join('');
+  try {
+    // If content already has paragraph tags, return as is
+    if (!content || typeof content !== 'string') {
+      return '<p>Content generation failed. Please try again.</p>';
+    }
+    
+    if (content.includes('<p>')) return content.trim();
+    
+    // Otherwise, add paragraph tags
+    return content
+      .split(/\n{2,}/)
+      .filter(p => p.trim().length > 0)
+      .map(p => `<p>${p.trim()}</p>`)
+      .join('') || '<p>Content generation failed. Please try again.</p>';
+  } catch (error) {
+    console.error("Error formatting HTML:", error);
+    return '<p>Content generation failed. Please try again.</p>';
+  }
 }
 
 // Replace or add this utility function for more natural length variation
