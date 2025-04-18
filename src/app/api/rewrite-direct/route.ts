@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { applyLimbaughStyle } from '@/lib/limbaughStyleRewriter';
-import { applyCharlieKirkStyle } from '@/lib/charlieKirkStyleRewriter';
-import { applyLarryElderStyle } from '@/lib/larryElderStyleRewriter';
-import { applyGlennBeckStyle } from '@/lib/glennBeckStyleRewriter';
-import { applyLauraLoomerStyle } from '@/lib/lauraLoomerStyleRewriter';
-import { applyTomiLahrenStyle } from '@/lib/tomiLahrenStyleRewriter';
-// import { PersonaType } from '@/types/personas';
+import { rewriteInPersonaStyle, PersonaType } from '@/lib/aiPersonaRewriter';
 
 export async function POST(request: NextRequest) {
   try {
-    const { title, content, persona } = await request.json();
+    const { title, content, persona, model } = await request.json();
     
     if (!title || !content) {
       return NextResponse.json(
@@ -18,43 +12,57 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Apply the selected persona's style transformation
-    let rewrittenContent;
+    // Validate persona type
+    const validPersonas = [
+      'charlie_kirk',
+      'larry_elder', 
+      'glenn_beck', 
+      'laura_loomer', 
+      'tomi_lahren', 
+      'rush_limbaugh'
+    ];
     
-    switch (persona) {
-      case 'charlie_kirk':
-        rewrittenContent = applyCharlieKirkStyle(title, content);
-        break;
-      case 'larry_elder':
-        rewrittenContent = applyLarryElderStyle(title, content);
-        break;
-      case 'glenn_beck':
-        rewrittenContent = applyGlennBeckStyle(title, content);
-        break;
-      case 'laura_loomer':
-        rewrittenContent = applyLauraLoomerStyle(title, content);
-        break;
-      case 'tomi_lahren':
-        rewrittenContent = applyTomiLahrenStyle(title, content);
-        break;
-      case 'rush_limbaugh':
-      default:
-        // Default to Rush Limbaugh style if no persona is specified or if it's explicitly selected
-        rewrittenContent = applyLimbaughStyle(title, content);
-        break;
-    }
+    // Use default persona if not specified or invalid
+    const selectedPersona = validPersonas.includes(persona) 
+      ? persona as PersonaType 
+      : 'rush_limbaugh' as PersonaType;
+    
+    // Validate model selection
+    const selectedModel = model === 'gpt' ? 'gpt' : 'claude';
+    
+    // Apply the AI-powered persona rewriting with model selection
+    const rewrittenContent = await rewriteInPersonaStyle(
+      title, 
+      content, 
+      selectedPersona,
+      selectedModel
+    );
     
     return NextResponse.json({
       success: true,
       title: rewrittenContent.title,
       content: rewrittenContent.content,
-      persona: persona || 'rush_limbaugh' // Return the persona used
+      persona: selectedPersona,
+      model: selectedModel
     });
   } catch (error) {
-    console.error('Error in rewrite-direct API:', error);
+    console.error('Error in AI rewrite API:', error);
+    
+    // Check for specific AI-related errors
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Failed to rewrite content';
+    
+    // Handle rate limiting or quota errors specifically
+    const isRateLimitError = errorMessage.toLowerCase().includes('rate limit') || 
+                           errorMessage.toLowerCase().includes('quota');
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to rewrite content' },
-      { status: 500 }
+      { 
+        error: errorMessage,
+        isRateLimitError: isRateLimitError
+      },
+      { status: isRateLimitError ? 429 : 500 }
     );
   }
 }

@@ -55,11 +55,11 @@ export async function findWikipediaImage(searchTerm: string): Promise<ImageResul
         
         // Filter out SVG images and look for suitable images
         // Define an interface for the filter conditions
-        interface ImageFilterCriteria {
-          lowerUrl: string;
-          excludeExtensions: string[];
-          excludeKeywords: string[];
-        }
+        // interface ImageFilterCriteria {
+        //   lowerUrl: string;
+        //   excludeExtensions: string[];
+        //   excludeKeywords: string[];
+        // }
         
         const suitableImages: string[] = images.filter((img: string) => {
           const lowerUrl: string = img.toLowerCase();

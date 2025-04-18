@@ -10,6 +10,7 @@ export default function Home() {
   const [selectedPersona, setSelectedPersona] = useState<PersonaType>('rush_limbaugh');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedModel, setSelectedModel] = useState<'gpt' | 'claude'>('claude');
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +33,8 @@ export default function Home() {
         body: JSON.stringify({
           title,
           content,
-          persona: selectedPersona
+          persona: selectedPersona,
+          model: selectedModel
         }),
       });
       
@@ -126,6 +128,45 @@ export default function Home() {
                     </svg>
                   </div>
                 </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Select AI Model
+                </label>
+                <div className="flex gap-6 items-center">
+                  <div className="flex items-center">
+                    <input
+                      id="claude"
+                      type="radio"
+                      value="claude"
+                      name="model"
+                      checked={selectedModel === 'claude'}
+                      onChange={() => setSelectedModel('claude')}
+                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <label htmlFor="claude" className="ml-2 block text-sm text-gray-700">
+                      Claude (Anthropic)
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      id="gpt"
+                      type="radio"
+                      value="gpt"
+                      name="model"
+                      checked={selectedModel === 'gpt'}
+                      onChange={() => setSelectedModel('gpt')}
+                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                    />
+                    <label htmlFor="gpt" className="ml-2 block text-sm text-gray-700">
+                      GPT (OpenAI)
+                    </label>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Choose which AI model to use for rewriting your content.
+                </p>
               </div>
               
               <div>
