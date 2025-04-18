@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/rewrite-direct/**": {
+    "src/app/api/**/*": {
       "maxDuration": 60
     }
   }
