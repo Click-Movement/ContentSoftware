@@ -302,33 +302,33 @@ IMPORTANT INSTRUCTIONS:
 }
 
 // Add this at the beginning of each persona prompt function
-function createGenericPersonaPrompt(title: string, content: string, lengthGuidance: string, persona: string): string {
-  const basePrompt = `
-TASK: Rewrite the following article in ${persona}'s exact style and voice.
+// function createGenericPersonaPrompt(title: string, content: string, lengthGuidance: string, persona: string): string {
+//   const basePrompt = `
+// TASK: Rewrite the following article in ${persona}'s exact style and voice.
 
-${lengthGuidance}
+// ${lengthGuidance}
 
-IMPORTANT INSTRUCTIONS:
-- ALWAYS create a NEW title in ${persona}'s style, even if the original title already seems similar
-- Generate FRESH content that captures ${persona}'s unique voice and rhetorical patterns
-- Don't simply return the original content if it seems similar - recreate it in ${persona}'s authentic style
-- Ensure the output has the distinctive markers and phrases of ${persona}'s communication style
+// IMPORTANT INSTRUCTIONS:
+// - ALWAYS create a NEW title in ${persona}'s style, even if the original title already seems similar
+// - Generate FRESH content that captures ${persona}'s unique voice and rhetorical patterns
+// - Don't simply return the original content if it seems similar - recreate it in ${persona}'s authentic style
+// - Ensure the output has the distinctive markers and phrases of ${persona}'s communication style
 
-ORIGINAL TITLE:
-${title}
+// ORIGINAL TITLE:
+// ${title}
 
-ORIGINAL CONTENT:
-${content}
+// ORIGINAL CONTENT:
+// ${content}
 
-OUTPUT FORMAT:
-Title: [Your ${persona}-style title]
+// OUTPUT FORMAT:
+// Title: [Your ${persona}-style title]
 
-Content:
-[Complete ${persona}-style content with HTML paragraph tags]
-`;
+// Content:
+// [Complete ${persona}-style content with HTML paragraph tags]
+// `;
 
-  return basePrompt;
-}
+//   return basePrompt;
+// }
 
 function createCharlieKirkPrompt(title: string, content: string, lengthGuidance: string): string {
   return `
