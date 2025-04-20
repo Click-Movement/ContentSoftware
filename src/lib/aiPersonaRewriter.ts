@@ -18,7 +18,8 @@ export type PersonaType =
   'larry_elder' | 
   'laura_loomer' | 
   'rush_limbaugh' |
-  'tomi_lahren';
+  'tomi_lahren' |
+  'ben_shapiro';
 
 export type AIModelType = 'gpt' | 'claude';
 
@@ -52,7 +53,7 @@ export async function rewriteInPersonaStyle(
   }
 }
 
-// Update the Claude response parsing
+// Update title extraction in rewriteWithClaude
 async function rewriteWithClaude(
   prompt: string, 
   persona: PersonaType,
@@ -89,22 +90,31 @@ async function rewriteWithClaude(
       throw new Error("Empty response from Claude API");
     }
 
-    // Parse out title and content with error handling
-    let extractedTitle = `${persona.replace('_', ' ')} Style Title`;
+    // Parse out title and content with improved error handling
+    let extractedTitle = '';
     let extractedContent = '';
 
     try {
       const titleMatch = fullText.match(/Title:?\s*(?:\n)?(.*?)(?:\n\n|\n(?=Content|<p>))/i);
-      if (titleMatch && titleMatch[1]) {
+      
+      // Check if we got a valid title that's not a placeholder
+      if (titleMatch && titleMatch[1] && 
+          titleMatch[1].trim().length > 5 && 
+          !titleMatch[1].toLowerCase().includes('style title')) {
         extractedTitle = titleMatch[1].trim();
+      } else {
+        // Generate a fallback title
+        extractedTitle = generateFallbackTitle(persona, originalContent || '');
       }
       
+      // Extract content as before
       const contentWithoutTitle = fullText.replace(/Title:?\s*(?:\n)?.*?(?:\n\n|\n(?=Content|<p>))/i, '').trim();
       extractedContent = ensureHtmlFormatting(contentWithoutTitle);
     } catch (parseError) {
       console.error("Error parsing title/content:", parseError);
       // Fallback to using the entire response as content
       extractedContent = ensureHtmlFormatting(fullText);
+      extractedTitle = generateFallbackTitle(persona, originalContent || '');
     }
 
     return {
@@ -117,7 +127,7 @@ async function rewriteWithClaude(
   }
 }
 
-// Similarly for GPT
+// Similarly update rewriteWithGPT
 async function rewriteWithGPT(
   prompt: string, 
   persona: PersonaType,
@@ -153,22 +163,31 @@ async function rewriteWithGPT(
       throw new Error("Empty response from OpenAI API");
     }
 
-    // Parse out title and content with error handling
-    let extractedTitle = `${persona.replace('_', ' ')} Style Title`;
+    // Parse out title and content with improved error handling
+    let extractedTitle = '';
     let extractedContent = '';
 
     try {
       const titleMatch = fullText.match(/Title:?\s*(?:\n)?(.*?)(?:\n\n|\n(?=Content|<p>))/i);
-      if (titleMatch && titleMatch[1]) {
+      
+      // Check if we got a valid title that's not a placeholder
+      if (titleMatch && titleMatch[1] && 
+          titleMatch[1].trim().length > 5 && 
+          !titleMatch[1].toLowerCase().includes('style title')) {
         extractedTitle = titleMatch[1].trim();
+      } else {
+        // Generate a fallback title
+        extractedTitle = generateFallbackTitle(persona,  originalContent ||  '');
       }
       
+      // Extract content as before
       const contentWithoutTitle = fullText.replace(/Title:?\s*(?:\n)?.*?(?:\n\n|\n(?=Content|<p>))/i, '').trim();
       extractedContent = ensureHtmlFormatting(contentWithoutTitle);
     } catch (parseError) {
       console.error("Error parsing title/content:", parseError);
       // Fallback to using the entire response as content
       extractedContent = ensureHtmlFormatting(fullText);
+      extractedTitle = generateFallbackTitle(persona, originalContent || '');
     }
 
     return {
@@ -241,18 +260,25 @@ function calculateTargetLength(originalContent: string): number {
   return targetTokens;
 }
 
-// Update the length guidance in prompts
+// Update the length guidance with explicit instructions to ALWAYS create new content
 function createDetailedPersonaPrompt(title: string, content: string, persona: PersonaType): string {
   // Calculate appropriate length for response
   const wordCount = content.split(/\s+/).length;
   
-  // Create more natural length guidance
+  // Create more natural length guidance with added instructions
   const lengthGuidance = `CONTENT LENGTH:
 - Write in a natural length that fits the persona's style
 - The original content is approximately ${wordCount} words
 - Avoid making the content significantly longer than the original
 - Short original content should get concise outputs
 - Focus on quality and authenticity rather than length
+
+IMPORTANT INSTRUCTIONS:
+- ALWAYS create a completely new title in the persona's style
+- NEVER respond with placeholder titles like "[Name] Style Title"
+- Generate fresh content even if the input already seems to match the persona's style
+- Ensure your output includes the persona's distinctive phrases and rhetorical patterns
+- Make the content original while maintaining the core message and facts
 `;
 
   switch (persona) {
@@ -268,9 +294,40 @@ function createDetailedPersonaPrompt(title: string, content: string, persona: Pe
       return createRushLimbaughPrompt(title, content, lengthGuidance);
     case 'tomi_lahren':
       return createTomiLahrenPrompt(title, content, lengthGuidance);
+    case 'ben_shapiro':
+      return createBenShapiroPrompt(title, content, lengthGuidance);
     default:
       throw new Error(`Unknown persona: ${persona}`);
   }
+}
+
+// Add this at the beginning of each persona prompt function
+function createGenericPersonaPrompt(title: string, content: string, lengthGuidance: string, persona: string): string {
+  const basePrompt = `
+TASK: Rewrite the following article in ${persona}'s exact style and voice.
+
+${lengthGuidance}
+
+IMPORTANT INSTRUCTIONS:
+- ALWAYS create a NEW title in ${persona}'s style, even if the original title already seems similar
+- Generate FRESH content that captures ${persona}'s unique voice and rhetorical patterns
+- Don't simply return the original content if it seems similar - recreate it in ${persona}'s authentic style
+- Ensure the output has the distinctive markers and phrases of ${persona}'s communication style
+
+ORIGINAL TITLE:
+${title}
+
+ORIGINAL CONTENT:
+${content}
+
+OUTPUT FORMAT:
+Title: [Your ${persona}-style title]
+
+Content:
+[Complete ${persona}-style content with HTML paragraph tags]
+`;
+
+  return basePrompt;
 }
 
 function createCharlieKirkPrompt(title: string, content: string, lengthGuidance: string): string {
@@ -369,6 +426,7 @@ TITLE STYLE:
 - For history-related topics: "History Repeating: [Topic]!", "The Founders Warned About [Topic]!", "The Historical Pattern of [Topic]!"
 - For general topics: "Connect the Dots: [Topic]!", "The Truth Behind [Topic]!", "Warning Signs: [Topic]!"
 - Always end titles with exclamation marks!
+- Use dramatic, urgent framing with historical connections
 
 OPENING PARAGRAPH STYLE:
 - Always start with one of these exact opening phrases:
@@ -384,6 +442,8 @@ OPENING PARAGRAPH STYLE:
   * "The situation with [TOPIC] has historical parallels that we need to understand."
   * "[TOPIC] represents a critical moment for our constitutional republic."
   * "The truth about [TOPIC] is being hidden from the American people."
+- Include emotional storytelling elements or personal anecdotes
+- Create a sense of urgency or impending crisis
 
 PARAGRAPH TRANSITIONS:
 - "Now, let's connect the dots."
@@ -393,6 +453,8 @@ PARAGRAPH TRANSITIONS:
 - "Let me show you something important."
 - "This is where it gets interesting."
 - "The Founders anticipated this very situation."
+- "I've been warning about this for years."
+- "This might sound crazy, but bear with me."
 
 REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "What would the Founders say about this?"
@@ -400,12 +462,27 @@ REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "Can you see the pattern emerging?"
 - "Where in the Constitution does it authorize this?"
 - "Are we connecting the dots yet?"
+- "What happens next if we continue down this path?"
+- "Is this the America our Founders envisioned?"
 
 SIGNATURE PHRASES TO INCLUDE:
 - "This is what the Founders warned us about."
 - "The Constitution is clear on this issue."
 - "History is repeating itself right before our eyes."
 - "We need to return to first principles."
+- "I'm just a guy trying to figure this out."
+- "Let me be clear: I don't want this to happen."
+- "I pray I'm wrong about this."
+- "Connect the dots."
+
+RHETORICAL DEVICES:
+- Emotional storytelling with personal elements
+- Apocalyptic framing of current events
+- Historical parallels to past catastrophes
+- Conspiracy narratives connecting seemingly unrelated events
+- Self-deprecating references ("I'm just a guy")
+- Religious and moral framing of political issues
+- Visual metaphors and thought experiments
 
 LANGUAGE PATTERNS:
 - Replace "important/significant/crucial" with "critical"
@@ -415,27 +492,36 @@ LANGUAGE PATTERNS:
 - Replace "some people think/some believe" with "history shows us"
 - Replace "it is possible that" with "mark my words:"
 - Replace "it seems that" with "it's clear that"
+- Use emotional language with apocalyptic overtones
+- Include theatrical elements and dramatic pauses (indicated by "...")
 
 FREQUENT REFERENCES TO:
 - The Constitution
-- The Founding Fathers
-- Historical parallels
-- Connecting dots
-- Warning signs
-- First principles
+- The Founding Fathers (especially Washington, Jefferson, Adams)
+- Historical parallels (especially Nazi Germany, Soviet Union)
+- Biblical stories and prophecies
+- "Faith, hope, and charity" principles
+- Conspiratorial connections between events
+- Warning signs and patterns from history
+- Divine providence and God's role in America
 
 CLOSING STYLE:
 - Start with phrases like "Let me leave you with this final thought." or "The choice before us is clear."
 - Include a call to action about the Constitution or founding principles
 - End with a statement like "The future of our republic hangs in the balance." or "May God continue to bless the United States of America."
+- Include a personal, emotional appeal or prayer
+- Express hope despite dire warnings
 
 SPECIAL SECTIONS:
 - Include a "HISTORY LESSON" section that draws historical parallels
 - Include a "CONSTITUTIONAL PERSPECTIVE" section that references founding documents
+- Create a "CONNECT THE DOTS" section linking seemingly unrelated events
+- Include a section addressing "What You Can Do" with specific actions
 
 FORMAT: 
 - Structure with HTML paragraph tags (<p>...</p>)
 - Write an engaging title and content that maintains key facts but completely rewrites in Beck's distinctive style
+- Include emotional highs and lows throughout the piece
 
 ORIGINAL TITLE:
 ${title}
@@ -462,6 +548,7 @@ TITLE STYLE:
 - For government-related topics: "Government Isn't the Solution to [Topic]!", "The Free Market Answer to [Topic]!", "Personal Responsibility, Not [Topic]!"
 - For general topics: "The Facts About [Topic]!", "What My Father Taught Me About [Topic]!", "The Sage from South Central on [Topic]!"
 - Always end titles with exclamation marks!
+- Incorporate phrases like "The Data Shows" or "Statistics Don't Lie About"
 
 OPENING PARAGRAPH STYLE:
 - Always start with one of these exact opening phrases:
@@ -472,11 +559,14 @@ OPENING PARAGRAPH STYLE:
   * "As I often say on my radio show,"
   * "Let me challenge the conventional wisdom."
   * "The Sage from South Central here with some truth."
+  * "Contrary to the popular narrative,"
 - For the main topic, use phrases like:
   * "The narrative about [TOPIC] ignores some basic facts."
   * "When it comes to [TOPIC], we need to look at the evidence, not emotions."
   * "The media's portrayal of [TOPIC] is missing crucial context."
   * "Let's examine [TOPIC] with logic and reason, not feelings."
+- Begin with a counter-narrative to conventional wisdom
+- Establish immediate contrast to mainstream media portrayal
 
 PARAGRAPH TRANSITIONS:
 - "Let's examine the facts."
@@ -486,6 +576,17 @@ PARAGRAPH TRANSITIONS:
 - "Here's what they're not telling you."
 - "Let's apply some logic here."
 - "The evidence contradicts the narrative."
+- "This is where critical thinking matters."
+- "Let me offer some context here."
+
+RHETORICAL DEVICES:
+- Calm, measured reasoning without emotional appeals
+- Statistical references to support arguments
+- Personal anecdotes from childhood or father's teachings
+- Direct challenges to prevailing narratives
+- Sarcastic questioning of opposing viewpoints
+- "Assume I'm right about X" hypothetical scenarios
+- Numbered lists of factual points
 
 REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "Where's the evidence for this claim?"
@@ -493,12 +594,18 @@ REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "How does more government solve this problem?"
 - "Why aren't we looking at the data?"
 - "What would my father say about this?"
+- "How exactly does this policy help the very people it claims to serve?"
+- "If systemic racism explains everything, what explains Asian American success?"
 
 SIGNATURE PHRASES TO INCLUDE:
 - "As I often say, facts don't care about feelings."
 - "This is what my father would call a 'victimhood mentality.'"
 - "The solution isn't more government, it's more freedom."
 - "We need to look at the hard data, not emotional appeals."
+- "My father was right when he told me..."
+- "The Sage from South Central is telling you..."
+- "What you won't hear on CNN or MSNBC is..."
+- "Let's deal with what is, not what ought to be."
 
 LANGUAGE PATTERNS:
 - Replace "important/significant/crucial" with "essential"
@@ -508,6 +615,9 @@ LANGUAGE PATTERNS:
 - Replace "some people think/some believe" with "the evidence shows"
 - Replace "it is possible that" with "clearly,"
 - Replace "it seems that" with "the facts indicate that"
+- Use primarily neutral, declarative language
+- Emphasize statistical data and historical examples
+- Avoid emotional hyperbole in favor of logical argumentation
 
 FREQUENT REFERENCES TO:
 - Personal responsibility
@@ -516,19 +626,29 @@ FREQUENT REFERENCES TO:
 - Free market solutions
 - Limited government
 - Logical analysis
+- The Constitution and founding principles
+- Historical examples that contradict progressive narratives
+- Self-help and individual agency over victimhood
+- The damage of government dependency
 
 CLOSING STYLE:
 - Start with phrases like "Let me leave you with this thought." or "Here's the bottom line."
 - Include a call to action emphasizing personal responsibility
 - End with a statement like "That's not just my opinion—that's what the evidence shows." or "As my father taught me: hard work, education, and personal responsibility are the keys to success."
+- Conclude with a challenge to rethink conventional wisdom
+- Reference back to a personal anecdote or father's wisdom
 
 SPECIAL SECTIONS:
 - Include a "DEAR FATHER" section that references Elder's father's wisdom
 - Include a "THE FACTS" section that presents clear statistical evidence
+- Add a "MEDIA MALPRACTICE" section highlighting misleading reporting
+- Include a section addressing "THE REAL SOLUTION" focused on personal agency
 
 FORMAT: 
 - Structure with HTML paragraph tags (<p>...</p>)
 - Write an engaging title and content that maintains key facts but completely rewrites in Elder's distinctive style
+- Use concise paragraphs focused on single logical points
+- Create clear progression of evidence-based arguments
 
 ORIGINAL TITLE:
 ${title}
@@ -556,6 +676,7 @@ TITLE STYLE:
 - For general topics: "SILENCED FOR REPORTING THIS: [Topic]!", "BREAKING: [Topic] SCANDAL EXPOSED!", "EXCLUSIVE: What The Media Won't Tell You About [Topic]!"
 - Use strategic CAPITALIZATION for emphasis
 - Always end titles with exclamation marks!
+- Incorporate words like "EXCLUSIVE," "BREAKING," "BANNED," and "EXPOSED"
 
 OPENING PARAGRAPH STYLE:
 - Always start with one of these exact opening phrases:
@@ -566,11 +687,14 @@ OPENING PARAGRAPH STYLE:
   * "The mainstream media is COVERING UP this story."
   * "I'm risking everything to bring you this EXCLUSIVE."
   * "This is what Big Tech doesn't want you to see."
+  * "The CORRUPT establishment is TERRIFIED of this information."
 - For the main topic, use phrases like:
   * "The TRUTH about [TOPIC] is being CENSORED across social media."
   * "What's happening with [TOPIC] is a SCANDAL that's being covered up."
   * "I've been investigating [TOPIC] and what I found will OUTRAGE you."
   * "The establishment is TERRIFIED that you'll learn the truth about [TOPIC]."
+- Create immediate urgency and exclusivity
+- Position yourself as a persecuted truth-teller
 
 PARAGRAPH TRANSITIONS:
 - "Here's what they're HIDING from you."
@@ -580,6 +704,19 @@ PARAGRAPH TRANSITIONS:
 - "I'm EXPOSING the truth that"
 - "Despite being CENSORED, I can reveal that"
 - "What I'm about to share got me BANNED from Twitter."
+- "The MAINSTREAM MEDIA won't report this, but"
+- "My INVESTIGATION has UNCOVERED that"
+- "I'm putting my career on the line to tell you that"
+
+RHETORICAL DEVICES:
+- Persecution narrative (I've been banned/silenced/censored)
+- Claims of exclusive information or sources
+- Conspiracy framing (they don't want you to know)
+- Appeal to insider knowledge (my sources confirm)
+- Urgent, breaking news presentation
+- Direct attacks on specific companies or individuals
+- References to personal sacrifices made for truth
+- Anti-establishment positioning
 
 REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "Why is no one else reporting this?"
@@ -587,15 +724,21 @@ REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "Why are they so desperate to silence this story?"
 - "How much longer will they get away with this cover-up?"
 - "When will people wake up to what's really happening?"
+- "Why are they TERRIFIED of people knowing this?"
+- "Do you see the PATTERN of CENSORSHIP yet?"
 
 SIGNATURE PHRASES TO INCLUDE:
 - "This is what they don't want you to know."
 - "I've been BANNED for reporting this."
 - "Big Tech is trying to SILENCE this story."
 - "This is the TRUTH they're hiding from you."
+- "I'm the most CENSORED journalist in America."
+- "They call it 'hate speech' because they HATE the truth."
+- "My sources CONFIRMED this information."
+- "I'm putting everything on the line to bring you this EXCLUSIVE."
 
 LANGUAGE PATTERNS:
-- Use CAPITALIZATION for emphasis on key words
+- Use CAPITALIZATION for emphasis on key words (at least 3-5 words per paragraph)
 - Replace "important/significant/crucial" with "CRITICAL"
 - Replace "problem/issue/concern" with "CRISIS"
 - Replace "said/stated/mentioned" with "ADMITTED"
@@ -603,6 +746,10 @@ LANGUAGE PATTERNS:
 - Replace "some people think/some believe" with "I can CONFIRM"
 - Replace "it is possible that" with "I've EXPOSED that"
 - Replace "it seems that" with "my sources CONFIRM that"
+- Use urgent, alarming language throughout
+- Create sense of conspiracy and cover-up
+- Position yourself as a victim of censorship
+- Emphasize personal risk taken to report information
 
 FREQUENT REFERENCES TO:
 - Being censored, banned, or deplatformed
@@ -610,19 +757,31 @@ FREQUENT REFERENCES TO:
 - The establishment covering up information
 - Being targeted for reporting the truth
 - Social media censorship
+- Big Tech corruption
+- Naming specific individuals or organizations as corrupt
+- References to your own activism and protests
+- Being "first to report" or "exclusively obtain"
+- The mainstream media's failures
 
 CLOSING STYLE:
 - Start with phrases like "EXCLUSIVE: Here's what you need to know." or "The TRUTH they don't want you to hear:"
 - Include a call to action about sharing the information before censorship
 - End with a statement like "They can ban me, but they can't ban the truth." or "This is Laura Loomer, the most censored woman in America, reporting what others won't."
+- Emphasize that time is running out to act
+- Position yourself as a martyr for truth
+- Include links or references to your own platforms
 
 SPECIAL SECTIONS:
 - Include a "BANNED" section about censorship related to the topic
 - Include an "EXCLUSIVE" section with supposedly exclusive information
+- Add a "WHAT THEY'RE HIDING" section revealing alleged cover-ups
+- Include a "TAKE ACTION NOW" section with urgent calls to action
 
 FORMAT: 
 - Structure with HTML paragraph tags (<p>...</p>)
 - Write an engaging title and content that maintains key facts but completely rewrites in Loomer's distinctive style with strategic CAPITALIZATION
+- Use short, dramatic paragraphs for emphasis
+- Include at least one personal anecdote about being censored or attacked
 
 ORIGINAL TITLE:
 ${title}
@@ -649,6 +808,7 @@ TITLE STYLE:
 - For Republican/conservative topics: "Trump Triumph on [Topic]!", "Conservatives WIN the Battle on [Topic]!", "The REAL Story of [Topic]!"
 - For general topics: "What the Drive-By Media Won't Tell You About [Topic]!", "The Truth About [Topic] That Liberals HATE!", "BREAKING: [Topic] Exposes Liberal Agenda!"
 - Always end titles with exclamation marks!
+- Use decisive, declarative framing
 
 OPENING PARAGRAPH STYLE:
 - Always start with one of these exact opening phrases:
@@ -664,6 +824,8 @@ OPENING PARAGRAPH STYLE:
   * "The mainstream media won't tell you the truth about [TOPIC]. But I will."
   * "What's happening with [TOPIC] is a perfect example of what's wrong in America today."
   * "The liberals think you're too stupid to understand what's really going on with [TOPIC]."
+- Use confident declarations rather than hedging or qualifying
+- Simplify complex issues into digestible, everyday language
 
 PARAGRAPH TRANSITIONS:
 - "Now, here's the thing."
@@ -673,6 +835,8 @@ PARAGRAPH TRANSITIONS:
 - "The real story is much deeper."
 - "Let's be perfectly clear about this."
 - "I want to make sure you understand this next point."
+- "Don't doubt me on this, folks."
+- "I've been saying this for years."
 
 EMOTIONAL INTENSITY MARKERS:
 - " - and I mean EVERY word of this - "
@@ -680,6 +844,8 @@ EMOTIONAL INTENSITY MARKERS:
 - " - now pay attention to this part - "
 - " - and this is absolutely CRITICAL - "
 - " - and I've been saying this for YEARS - "
+- Use strategic ALL CAPS for emphasis
+- Express passionate conviction and righteous indignation
 
 SIGNATURE PHRASES TO INCLUDE:
 - "The drive-by media won't tell you this."
@@ -687,7 +853,10 @@ SIGNATURE PHRASES TO INCLUDE:
 - "I told you this would happen."
 - "Let me break this down in a way that makes sense."
 - "The American people deserve to know the truth about this."
+- "With half my brain tied behind my back, just to make it fair."
+- "Talent on loan from God."
 - References to "ditto-heads" or "on this program"
+- "That's why they call me the Doctor of Democracy."
 
 LANGUAGE PATTERNS:
 - Replace "important/significant/crucial" with "CRITICAL"
@@ -698,19 +867,25 @@ LANGUAGE PATTERNS:
 - Replace "it is possible that" with "Make no mistake,"
 - Replace "it seems that" with "It's crystal clear that"
 - Use strategic CAPITALIZATION for emphasis
+- Create memorable labels and nicknames for political figures
+- Use absurdity amplification to mock opposing viewpoints
 
 CLOSING STYLE:
 - Start with phrases like "And that, my friends, is exactly what we've been saying all along." or "Make no mistake about it - this is just the beginning."
 - Include a call to action about American values
 - End with a statement like "And that's the way it is - no matter what the drive-by media tells you." or "Remember, you heard it here first."
+- Project absolute certainty in your conclusions
 
 SPECIAL SECTIONS:
-- Include a paragraph with rhetorical questions
+- Include a paragraph with rhetorical questions that lead to obvious conservative conclusions
 - Include a "ditto" paragraph near the end that references his listeners
+- Create a section that mocks liberal policies or figures with exaggerated descriptions
+- Include a section predicting how opponents will react to your points
 
 FORMAT: 
 - Structure with HTML paragraph tags (<p>...</p>)
 - Write an engaging title and content that maintains key facts but completely rewrites in Limbaugh's distinctive style
+- Use direct, conversational address to the reader as "folks" or "my friends"
 
 ORIGINAL TITLE:
 ${title}
@@ -737,6 +912,7 @@ TITLE STYLE:
 - For patriotic/America topics: "REAL Americans Know The Truth About [Topic]!", "Patriots Stand Strong on [Topic]!", "It's Time For TRUTH About [Topic]!"
 - For general topics: "My FINAL THOUGHTS On [Topic]!", "Sorry Not Sorry: The TRUTH About [Topic]!", "Let That Sink In: [Topic] EXPOSED!"
 - Always end titles with exclamation marks!
+- Use direct, confrontational language that suggests liberal outrage
 
 OPENING PARAGRAPH STYLE:
 - Always start with one of these exact opening phrases:
@@ -747,11 +923,14 @@ OPENING PARAGRAPH STYLE:
   * "I'm about to trigger some snowflakes with this one."
   * "America, we need to talk about this."
   * "I don't care who this offends, but"
+  * "Listen up, because you won't hear this from the mainstream media."
 - For the main topic, use phrases like:
   * "The left's approach to [TOPIC] is exactly what's wrong with America today."
   * "Real Americans are tired of the nonsense surrounding [TOPIC]."
   * "The liberal elite want to control the narrative on [TOPIC], but I'm not buying it."
   * "It's time for some straight talk about [TOPIC] that won't make it into your safe spaces."
+- Begin with a bold, unapologetic declaration
+- Immediately establish contrast with the left/liberals
 
 PARAGRAPH TRANSITIONS:
 - "Here's the thing."
@@ -761,6 +940,20 @@ PARAGRAPH TRANSITIONS:
 - "While the snowflakes are triggered,"
 - "Let's talk about what really matters."
 - "I don't care who this offends, but"
+- "Now listen up."
+- "And that's not even the worst part."
+- "Let's be honest here."
+
+RHETORICAL DEVICES:
+- Direct address to audience as "folks," "America," or "y'all"
+- Mockery of liberal "outrage" and "political correctness"
+- Appeals to common sense and "real America"
+- Positioning as a brave truth-teller
+- Generational framing as a millennial conservative
+- Patriotic imagery and American values appeals
+- Binary contrasts between real Americans vs. liberal elite
+- Dismissive tone toward liberal concerns
+- Confrontational challenges to critics
 
 REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "When will the left admit they're wrong?"
@@ -768,13 +961,19 @@ REGULAR USE OF RHETORICAL QUESTIONS LIKE:
 - "Why are conservatives always expected to apologize while liberals get a free pass?"
 - "Does anyone still believe the mainstream media?"
 - "When did loving America become controversial?"
+- "Whatever happened to common sense?"
+- "Are we really going to let them get away with this?"
 
 SIGNATURE PHRASES TO INCLUDE:
 - "And that's not just my opinion, that's a fact."
 - "Sorry, not sorry."
 - "Let that sink in."
 - "That's what real Americans believe."
-- References to being a millennial conservative
+- "I'm not about to apologize for saying what needs to be said."
+- "This isn't hate speech, it's common sense."
+- "If that triggers you, too bad."
+- "I'm a constitutional conservative and a proud American."
+- "I'm a millennial who actually loves this country."
 
 LANGUAGE PATTERNS:
 - Replace "important/significant/crucial" with "critical"
@@ -784,6 +983,10 @@ LANGUAGE PATTERNS:
 - Replace "some people think/some believe" with "real Americans know"
 - Replace "it is possible that" with "let's be honest:"
 - Replace "it seems that" with "it's obvious that"
+- Use conversational, direct language with occasional slang
+- Create dramatic contrast between liberal "feelings" and conservative "facts"
+- Use decisive, black-and-white framing
+- Employ personal anecdotes to establish authenticity
 
 FREQUENT REFERENCES TO:
 - "Real Americans"
@@ -792,19 +995,30 @@ FREQUENT REFERENCES TO:
 - Being a millennial who doesn't need "trigger warnings"
 - Personal responsibility
 - Patriotism and love of country
+- Constitution and freedoms
+- Common sense solutions
+- Being silenced or attacked for conservative views
+- The "silent majority" who agree with you
 
 CLOSING STYLE:
 - Start with phrases like "Those are my final thoughts." or "Let me leave you with this."
 - Include a patriotic call to action
 - End with a statement like "That's just the way it is, and I'm not sorry about it." or "And if that offends you, I'm definitely not sorry."
+- Finish with a signature catchphrase 
+- Emphasize finality and certainty
+- Express unapologetic confidence in the stated position
 
 SPECIAL SECTIONS:
 - Include a "FINAL THOUGHTS" section that summarizes the key points
 - Include a "LIBERAL HYPOCRISY" section that points out perceived double standards
+- Add a "REAL TALK" section with straight-talking perspective
+- Include a "MILLENNIAL CONSERVATIVE" section that contrasts with liberal peers
 
 FORMAT: 
 - Structure with HTML paragraph tags (<p>...</p>)
 - Write an engaging title and content that maintains key facts but completely rewrites in Lahren's distinctive style
+- Use punchy, short paragraphs for emphasis
+- Create rhythm with short, declarative statements
 
 ORIGINAL TITLE:
 ${title}
@@ -818,4 +1032,132 @@ Title: [Your Lahren-style title]
 Content:
 [Complete Lahren-style content with HTML paragraph tags]
 `;
+}
+
+function createBenShapiroPrompt(title: string, content: string, lengthGuidance: string): string {
+  return `
+TASK: Rewrite the following article in Ben Shapiro's exact style and voice.
+
+${lengthGuidance}
+
+TITLE STYLE:
+- For logical/argument topics: "The Truth About [Topic]", "The Left's Illogical Position on [Topic]", "Debunking [Topic]: Facts vs Feelings"
+- For political topics: "Why [Liberal Position on Topic] Makes No Sense", "The Intellectual Bankruptcy of [Topic]", "The Data on [Topic] That Leftists Ignore"
+- For free speech/campus topics: "Campus Snowflakes Can't Handle [Topic]", "The Free Speech Crisis: [Topic]", "Why [Topic] Matters for Liberty"
+- Use colons, questions, and occasional sarcasm
+- Maintain intellectual framing with references to constitutional principles
+
+OPENING PARAGRAPH STYLE:
+- Always start with one of these exact opening phrases:
+  * "Okay, so here's the thing about [TOPIC]."
+  * "Let's say, for the sake of argument, that [POSITION]."
+  * "Let me lay out the facts here."
+  * "The left's position on [TOPIC] is, frankly, ridiculous."
+  * "Let's break this down logically."
+  * "Facts don't care about your feelings, and the facts about [TOPIC] are clear."
+  * "Here's what the data actually tells us about [TOPIC]."
+- Establish clear definitions before proceeding with arguments
+- Use rapid-fire, information-dense sentences with minimal transition
+
+PARAGRAPH TRANSITIONS:
+- "So first of all,"
+- "Let's move on to point number two,"
+- "Now, let's examine the facts."
+- "Here's where the logic breaks down."
+- "Statistically speaking,"
+- "The data clearly shows"
+- "Let's say, hypothetically,"
+- "Moving from the abstract to the concrete,"
+
+SYLLOGISTIC REASONING PATTERNS (USE THESE FREQUENTLY):
+- "If A is true, and B follows from A, then B must be true."
+- "Either A or B must be true. A is demonstrably false. Therefore, B."
+- "The only possible explanations are X, Y, or Z. X and Y are illogical. Therefore, Z."
+- Use "therefore" and "thus" frequently to connect logical steps
+- Present arguments in clear premise-conclusion format
+- Number points explicitly (First, Second, Third)
+
+SIGNATURE PHRASES TO INCLUDE:
+- "Facts don't care about your feelings."
+- "Let's say, for the sake of argument,"
+- "Okay, so"
+- "That's just not true."
+- "Here's the reality."
+- "Let's break this down."
+- "By definition"
+- "Statistically speaking"
+- "The idea that [opposing view] is absurd on its face."
+- "This is a fundamental misunderstanding of [topic]."
+
+LANGUAGE PATTERNS:
+- Use rapid-fire sentence structure with logical connectors
+- Speak in complete, grammatically perfect sentences
+- Replace "important/significant/crucial" with "fundamental"
+- Replace "problem/issue/concern" with "fallacy" or "logical error"
+- Replace "said/stated/mentioned" with "argued" or "posited"
+- Replace "may/might/could" with "necessarily"
+- Replace "some people think/some believe" with "the left claims"
+- Replace "it is possible that" with "logically,"
+- Replace "it seems that" with "it's objectively clear that"
+- Maintain emotional restraint with calculated indignation
+
+FREQUENT REFERENCES TO:
+- Statistical data and specific percentages
+- Constitutional principles and originalist interpretations
+- Logical fallacies (straw man, ad hominem, etc.)
+- Western civilization and Judeo-Christian values
+- Free speech and First Amendment
+- Legal precedents and frameworks
+- Academic references and specific studies
+
+CLOSING STYLE:
+- Start with phrases like "So in conclusion," or "The bottom line is this:"
+- Summarize the logical argument in clear, direct terms
+- End with a challenge to the opposing viewpoint like "And that's something the left simply cannot refute." or "Those are the facts, regardless of how they make anyone feel."
+- Maintain certainty and definitiveness in final statements
+
+FORMAT: 
+- Structure with HTML paragraph tags (<p>...</p>)
+- Write an engaging title and content that maintains key facts but completely rewrites in Shapiro's distinctive style
+- Use short to medium paragraphs with clear logical progression
+- Create dense, information-rich content with minimal fluff
+
+ORIGINAL TITLE:
+${title}
+
+ORIGINAL CONTENT:
+${content}
+
+OUTPUT FORMAT:
+Title: [Your Shapiro-style title]
+
+Content:
+[Complete Shapiro-style content with HTML paragraph tags]
+`;
+}
+
+// Add this at the bottom of the file before the prompt creation functions
+function generateFallbackTitle(persona: PersonaType, originalTitle: string): string {
+  // Extract topic from original title or use a default
+  const topic = originalTitle ? originalTitle.replace(/[.?!]$/g, '') : "Current Topic";
+  
+  // Generate style-appropriate title based on persona
+  switch(persona) {
+    case 'ben_shapiro':
+      return `The Truth About ${topic}: Facts vs Feelings`;
+    case 'charlie_kirk': 
+      return `Campus Indoctrination: The Left's War on ${topic}!`;
+    case 'glenn_beck':
+      return `Connect the Dots: ${topic}!`;
+    case 'larry_elder':
+      return `The Facts About ${topic} That The Media Won't Tell You!`;
+    case 'laura_loomer':
+      return `EXCLUSIVE: What They're HIDING About ${topic}!`;
+    case 'rush_limbaugh':
+      return `What the Drive-By Media Won't Tell You About ${topic}!`;
+    case 'tomi_lahren':
+      return `My FINAL THOUGHTS On ${topic}!`;
+    default:
+      return `Conservative Commentary on ${topic}`;
+  }
 }

@@ -6,12 +6,14 @@ export type PersonaType =
   | 'larry_elder'
   | 'glenn_beck'
   | 'laura_loomer'
-  | 'tomi_lahren';
+  | 'tomi_lahren'
+  | 'ben_shapiro';  // Add this new option
 
 export interface Persona {
   id: PersonaType;
   name: string;
   description: string;
+  imageUrl?: string;  // Add optional imageUrl property
 }
 
 export const personas: Persona[] = [
@@ -44,6 +46,12 @@ export const personas: Persona[] = [
     id: 'tomi_lahren',
     name: 'Tomi Lahren',
     description: 'Outspoken young conservative commentator known for her "Final Thoughts" segments'
+  },
+  {
+    id: 'ben_shapiro',
+    name: 'Ben Shapiro',
+    description: 'Fast-paced logical arguments with precise language',
+    // imageUrl: '/commentators/ben_shapiro.jpg'  // Add an image if you have one
   }
 ];
 
