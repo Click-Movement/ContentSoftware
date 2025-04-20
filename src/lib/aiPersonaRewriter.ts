@@ -260,7 +260,7 @@ function calculateTargetLength(originalContent: string): number {
   return targetTokens;
 }
 
-// Update the length guidance with explicit instructions to ALWAYS create new content
+// Update the lengthGuidance in createDetailedPersonaPrompt to include title length instructions
 function createDetailedPersonaPrompt(title: string, content: string, persona: PersonaType): string {
   // Calculate appropriate length for response
   const wordCount = content.split(/\s+/).length;
@@ -272,6 +272,12 @@ function createDetailedPersonaPrompt(title: string, content: string, persona: Pe
 - Avoid making the content significantly longer than the original
 - Short original content should get concise outputs
 - Focus on quality and authenticity rather than length
+
+TITLE LENGTH:
+- Keep titles SHORT and CONCISE (5-10 words maximum)
+- Create punchy, one-line titles that capture attention
+- Avoid long, multi-part titles with excessive explanation
+- Make titles memorable and shareable
 
 IMPORTANT INSTRUCTIONS:
 - ALWAYS create a completely new title in the persona's style
@@ -1136,28 +1142,34 @@ Content:
 `;
 }
 
-// Add this at the bottom of the file before the prompt creation functions
+// Update the fallback title generator to create shorter titles
 function generateFallbackTitle(persona: PersonaType, originalTitle: string): string {
-  // Extract topic from original title or use a default
-  const topic = originalTitle ? originalTitle.replace(/[.?!]$/g, '') : "Current Topic";
+  // Extract a short topic (3-4 words max) from original title or use a default
+  let topic = originalTitle ? originalTitle.replace(/[.?!]$/g, '') : "This Topic";
   
-  // Generate style-appropriate title based on persona
+  // Limit topic length to prevent overly long titles
+  const topicWords = topic.split(/\s+/);
+  if (topicWords.length > 4) {
+    topic = topicWords.slice(0, 3).join(' ') + '...';
+  }
+  
+  // Generate concise style-appropriate title based on persona
   switch(persona) {
     case 'ben_shapiro':
-      return `The Truth About ${topic}: Facts vs Feelings`;
+      return `Facts vs Feelings: ${topic}`;
     case 'charlie_kirk': 
-      return `Campus Indoctrination: The Left's War on ${topic}!`;
+      return `Campus Leftism Exposed: ${topic}!`;
     case 'glenn_beck':
       return `Connect the Dots: ${topic}!`;
     case 'larry_elder':
-      return `The Facts About ${topic} That The Media Won't Tell You!`;
+      return `Truth About ${topic}!`;
     case 'laura_loomer':
-      return `EXCLUSIVE: What They're HIDING About ${topic}!`;
+      return `EXCLUSIVE: ${topic} EXPOSED!`;
     case 'rush_limbaugh':
-      return `What the Drive-By Media Won't Tell You About ${topic}!`;
+      return `Media Won't Tell You: ${topic}!`;
     case 'tomi_lahren':
-      return `My FINAL THOUGHTS On ${topic}!`;
+      return `FINAL THOUGHTS: ${topic}!`;
     default:
-      return `Conservative Commentary on ${topic}`;
+      return `Commentary: ${topic}`;
   }
 }
