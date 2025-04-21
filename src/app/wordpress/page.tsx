@@ -412,9 +412,21 @@ export default function WordPressPage() {
                   </button>
                   
                   <button
+                    type="button"
+                    onClick={() => {
+                      // Clear stored content and go to home page
+                      localStorage.removeItem('rewrittenContent');
+                      router.push('/');
+                    }}
+                    className="order-3 sm:order-2 bg-blue-600 hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200"
+                  >
+                    Write New Article
+                  </button>
+                  
+                  <button
                     type="submit"
                     disabled={isLoading}
-                    className="order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50"
+                    className="order-1 sm:order-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50"
                   >
                     {isLoading ? (
                       <div className="flex items-center">

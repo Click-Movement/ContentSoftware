@@ -136,14 +136,16 @@ export default function RewritePage() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Rewritten Title:</h3>
                   <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-                    <h1 className="text-xl font-bold text-gray-900">{rewrittenContent.title}</h1>
+                    {/* Fixed styling for title - prevent it from using default h1 styling */}
+                    <div className="text-xl font-bold text-gray-900">{rewrittenContent.title}</div>
                   </div>
                 </div>
                 
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Rewritten Content:</h3>
-                  <div className="bg-gray-50 p-4 rounded-md border border-gray-200 prose max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: rewrittenContent.content }} />
+                  <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                    {/* Use prose class for proper styling of HTML content */}
+                    <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: rewrittenContent.content }} />
                   </div>
                 </div>
                 
