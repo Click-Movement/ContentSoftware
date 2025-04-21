@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.39.0",
     "axios": "^1.8.4",
     "cheerio": "^1.0.0",
+    "crypto-js": "^4.2.0",
     "next": "15.2.5",
     "openai": "^4.93.0",
     "postcss": "^8.5.3",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.4",
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -3,14 +3,14 @@ import { RewrittenContent } from './limbaughStyleRewriter';
 import Anthropic from '@anthropic-ai/sdk';
 
 // Initialize API clients
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || '',
-  dangerouslyAllowBrowser: true
-});
+// const openai = new OpenAI({
+//   apiKey: process.env.OPENAI_API_KEY || '',
+//   dangerouslyAllowBrowser: true
+// });
 
-const claude = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY || ''
-});
+// const claude = new Anthropic({
+//   apiKey: process.env.CLAUDE_API_KEY || ''
+// });
 
 export type PersonaType = 
   'charlie_kirk' | 
@@ -29,13 +29,15 @@ export type AIModelType = 'gpt' | 'claude';
  * @param content Original content to rewrite
  * @param persona The conservative persona style to use
  * @param model The AI model to use (claude or gpt)
+ * @param userApiKeys Optional user-provided API keys for OpenAI and Claude
  * @returns Rewritten content with HTML formatting
  */
 export async function rewriteInPersonaStyle(
   title: string,
   content: string,
   persona: PersonaType,
-  model: AIModelType = 'claude'
+  model: AIModelType = 'claude',
+  userApiKeys?: { openai?: string | null; claude?: string | null }
 ): Promise<RewrittenContent> {
   try {
     // Create a persona-specific prompt that explicitly captures their style elements
@@ -43,9 +45,9 @@ export async function rewriteInPersonaStyle(
     
     // Use the selected model for rewriting
     if (model === 'gpt') {
-      return await rewriteWithGPT(prompt, persona, content);
+      return await rewriteWithGPT(prompt, persona, content, userApiKeys?.openai || undefined);
     } else {
-      return await rewriteWithClaude(prompt, persona, content);
+      return await rewriteWithClaude(prompt, persona, content, userApiKeys?.claude || undefined);
     }
   } catch (error) {
     console.error(`Error rewriting in ${persona} style with ${model}:`, error);
@@ -57,13 +59,18 @@ export async function rewriteInPersonaStyle(
 async function rewriteWithClaude(
   prompt: string, 
   persona: PersonaType,
-  originalContent: string
+  originalContent: string,
+  apiKey?: string | null
 ): Promise<RewrittenContent> {
   try {
     // Calculate token limit
     const targetTokens = Math.min(3800, Math.max(800, calculateTargetLength(originalContent)));
     
-    const response = await claude.messages.create({
+    const claudeClient = new Anthropic({
+      apiKey: apiKey || process.env.CLAUDE_API_KEY || '',
+    });
+
+    const response = await claudeClient.messages.create({
       model: 'claude-3-5-sonnet-20240620',
       max_tokens: targetTokens,
       messages: [
@@ -131,12 +138,18 @@ async function rewriteWithClaude(
 async function rewriteWithGPT(
   prompt: string, 
   persona: PersonaType,
-  originalContent: string
+  originalContent: string,
+  apiKey?: string | null
 ): Promise<RewrittenContent> {
   try {
     const targetTokens = Math.min(3500, Math.max(800, calculateTargetLength(originalContent)));
     
-    const response = await openai.chat.completions.create({
+    const openaiClient = new OpenAI({
+      apiKey: apiKey || process.env.OPENAI_API_KEY || '',
+      dangerouslyAllowBrowser: true
+    });
+
+    const response = await openaiClient.chat.completions.create({
       model: 'gpt-4', 
       messages: [
         { role: 'user', content: prompt }

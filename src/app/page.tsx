@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { personas, PersonaType } from '@/types/personas';
+import { useApiKeys } from '@/hooks/useApiKeys';
+import ApiKeyInput from '@/components/ApiKeyInput';
 
 export default function Home() {
   const [title, setTitle] = useState('');
@@ -11,20 +13,26 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedModel, setSelectedModel] = useState<'gpt' | 'claude'>('claude');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+  const { keys, hasRequiredKey } = useApiKeys();
   const router = useRouter();
+
+
+  console.log("Api Key", keys);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!title || !content) {
-      setError('Please enter both title and content');
+
+    if (!hasRequiredKey(selectedModel)) {
+      setError(`Please add your ${selectedModel === 'gpt' ? 'OpenAI' : 'Claude'} API key to use this model.`);
+      setShowApiKeyInput(true);
       return;
     }
-    
+
     try {
       setIsLoading(true);
       setError('');
-      
+
       const response = await fetch('/api/rewrite-direct', {
         method: 'POST',
         headers: {
@@ -34,24 +42,25 @@ export default function Home() {
           title,
           content,
           persona: selectedPersona,
-          model: selectedModel
+          model: selectedModel,
+          userApiKeys: keys // Pass the keys from the hook
         }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to rewrite content');
       }
-      
+
       const data = await response.json();
-      
+
       // Save rewritten content to localStorage for next page
       localStorage.setItem('rewrittenContent', JSON.stringify({
         title: data.title,
         content: data.content,
         persona: selectedPersona
       }));
-      
+
       // Navigate to rewrite page to show results
       router.push('/rewrite');
     } catch (err) {
@@ -66,6 +75,35 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col p-4 md:p-8">
+      {/* API Key Modal/Dialog */}
+      {showApiKeyInput && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-lg font-semibold">API Keys</h2>
+              <button 
+                onClick={() => setShowApiKeyInput(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                ✕
+              </button>
+            </div>
+            <ApiKeyInput onClose={() => setShowApiKeyInput(false)} />
+          </div>
+        </div>
+      )}
+      
+      {/* API Key Settings Button */}
+      <div className="w-full max-w-4xl mx-auto mb-4 flex justify-end">
+        <button
+          onClick={() => setShowApiKeyInput(true)}
+          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 py-1 px-3 rounded-md flex items-center"
+        >
+          <span className="mr-1">🔑</span> 
+          {hasRequiredKey('claude') || hasRequiredKey('gpt') ? 'Manage API Keys' : 'Add API Keys'}
+        </button>
+      </div>
+
       {/* Enhanced Header with Gradient Background */}
       <div className="w-full max-w-4xl mx-auto">
         <header className="mb-8 text-center">
@@ -127,6 +165,32 @@ export default function Home() {
                       <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                     </svg>
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Configure API Keys
+                </label>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKeyInput(true)}
+                    className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md transition-colors duration-200 border border-gray-300"
+                  >
+                    <span className="mr-2">🔑</span> 
+                    {hasRequiredKey('claude') && hasRequiredKey('gpt') 
+                      ? 'API Keys Configured' 
+                      : hasRequiredKey('claude') || hasRequiredKey('gpt')
+                        ? 'Configure Additional API Keys'
+                        : 'Add Your API Keys'}
+                    <svg className="ml-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Your API keys are required to use OpenAI or Claude models. Keys are stored securely in your browser.
+                  </p>
                 </div>
               </div>
               
