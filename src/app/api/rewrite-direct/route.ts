@@ -23,7 +23,11 @@ export async function POST(request: NextRequest) {
       'laura_loomer', 
       'tomi_lahren', 
       'rush_limbaugh',
-      'ben_shapiro'  // Add Ben Shapiro to valid personas list
+      'ben_shapiro',
+      'walter_cronkite',
+      'dan_rather',
+      'tulsi_gabbard',
+      'laura_ingraham'
     ];
     
     // Use default persona if not specified or invalid

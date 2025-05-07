@@ -7,7 +7,11 @@ export type PersonaType =
   | 'glenn_beck'
   | 'laura_loomer'
   | 'tomi_lahren'
-  | 'ben_shapiro';  // Add this new option
+  | 'ben_shapiro'
+  | 'walter_cronkite'
+  | 'dan_rather'
+  | 'tulsi_gabbard'
+  | 'laura_ingraham';
 
 export interface Persona {
   id: PersonaType;
@@ -50,8 +54,27 @@ export const personas: Persona[] = [
   {
     id: 'ben_shapiro',
     name: 'Ben Shapiro',
-    description: 'Fast-paced logical arguments with precise language',
-    // imageUrl: '/commentators/ben_shapiro.jpg'  // Add an image if you have one
+    description: 'Fast-paced logical arguments with precise language'
+  },
+  {
+    id: 'walter_cronkite',
+    name: 'Walter Cronkite',
+    description: 'Legendary news anchor known for his objectivity and sign-off phrase "And that\'s the way it is"'
+  },
+  {
+    id: 'dan_rather',
+    name: 'Dan Rather',
+    description: 'Veteran journalist with a distinctive Texas-flavored style and folksy metaphors'
+  },
+  {
+    id: 'tulsi_gabbard',
+    name: 'Tulsi Gabbard',
+    description: 'Former congresswoman and veteran who challenges establishment narratives with focus on anti-war policy'
+  },
+  {
+    id: 'laura_ingraham',
+    name: 'Laura Ingraham',
+    description: 'Conservative commentator known for polished delivery, sarcastic wit, and traditional values advocacy'
   }
 ];
 
