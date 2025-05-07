@@ -33,15 +33,13 @@ export type AIModelType = 'gpt' | 'claude';
  * @param content Original content to rewrite
  * @param persona The conservative persona style to use
  * @param model The AI model to use (claude or gpt)
- * @param userApiKeys Optional user-provided API keys for OpenAI and Claude
  * @returns Rewritten content with HTML formatting
  */
 export async function rewriteInPersonaStyle(
   title: string,
   content: string,
   persona: PersonaType,
-  model: AIModelType = 'claude',
-  userApiKeys?: { openai?: string | null; claude?: string | null }
+  model: AIModelType = 'claude'
 ): Promise<RewrittenContent> {
   try {
     // Create a persona-specific prompt that explicitly captures their style elements
@@ -49,9 +47,9 @@ export async function rewriteInPersonaStyle(
     
     // Use the selected model for rewriting
     if (model === 'gpt') {
-      return await rewriteWithGPT(prompt, persona, content, userApiKeys?.openai || undefined);
+      return await rewriteWithGPT(prompt, persona, content);
     } else {
-      return await rewriteWithClaude(prompt, persona, content, userApiKeys?.claude || undefined);
+      return await rewriteWithClaude(prompt, persona, content);
     }
   } catch (error) {
     console.error(`Error rewriting in ${persona} style with ${model}:`, error);
@@ -63,15 +61,14 @@ export async function rewriteInPersonaStyle(
 async function rewriteWithClaude(
   prompt: string, 
   persona: PersonaType,
-  originalContent: string,
-  apiKey?: string | null
+  originalContent: string
 ): Promise<RewrittenContent> {
   try {
     // Calculate token limit
     const targetTokens = Math.min(3800, Math.max(800, calculateTargetLength(originalContent)));
     
     const claudeClient = new Anthropic({
-      apiKey: apiKey || process.env.CLAUDE_API_KEY || '',
+      apiKey: process.env.CLAUDE_API_KEY || '',
     });
 
     const response = await claudeClient.messages.create({
@@ -142,14 +139,13 @@ async function rewriteWithClaude(
 async function rewriteWithGPT(
   prompt: string, 
   persona: PersonaType,
-  originalContent: string,
-  apiKey?: string | null
+  originalContent: string
 ): Promise<RewrittenContent> {
   try {
     const targetTokens = Math.min(3500, Math.max(800, calculateTargetLength(originalContent)));
     
     const openaiClient = new OpenAI({
-      apiKey: apiKey || process.env.OPENAI_API_KEY || '',
+      apiKey: process.env.OPENAI_API_KEY || '',
       dangerouslyAllowBrowser: true
     });
 

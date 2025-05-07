@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { personas, PersonaType } from '@/types/personas';
+import { ContentSkeletonLoader } from '@/components/SkeletonLoader';
 
 export default function RewritePage() {
   const [rewrittenContent, setRewrittenContent] = useState<{
@@ -30,7 +31,10 @@ export default function RewritePage() {
       } else {
         setError('No rewritten content found. Please go back and rewrite content first.');
       }
-      setIsLoading(false);
+      // Add a slight delay to show the skeleton loader
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 800);
     }
   }, []);
 
@@ -107,8 +111,8 @@ export default function RewritePage() {
           
           <div className="p-6 md:p-8">
             {isLoading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              <div>
+                <ContentSkeletonLoader />
               </div>
             ) : error ? (
               <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6">
